@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import DOMPurify from "dompurify";
 import { db, auth } from "../config/firebase";
@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 
 export default function ProductDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +36,19 @@ export default function ProductDetail() {
     };
     fetchData();
   }, [id]);
+
+  const handleInquiry = () => {
+    if (!auth.currentUser) {
+      toast.error('Please sign in to send an inquiry.');
+      navigate('/login');
+      return;
+    }
+    const userName = auth.currentUser.displayName || auth.currentUser.email.split('@')[0];
+    const productIdText = product.productId ? product.productId : product.id;
+    const message = `Hi I am ${userName}, I am interested to buy ${product.name} (${productIdText})`;
+    
+    window.open(`https://wa.me/919265466420?text=${encodeURIComponent(message)}`, '_blank');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -102,8 +116,12 @@ export default function ProductDetail() {
             <p className="text-textBody leading-relaxed text-base font-light">{product.shortDesc}</p>
             {product.details && <div className="text-textBody text-sm leading-loose font-light prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.details) }} />}
             <div className="pt-2 space-y-3">
-              <a href={`https://wa.me/919265466420?text=Hi, I'm interested in ${encodeURIComponent(product.name)}`} target="_blank" rel="noreferrer" className="w-full btn-primary py-3.5">Inquire on WhatsApp</a>
-              <Link to="/contact" className="w-full btn-secondary py-3.5">Send an Inquiry</Link>
+              <button onClick={handleInquiry} className="w-full btn-primary py-3.5">
+                Inquire on WhatsApp
+              </button>
+              <Link to="/contact" className="w-full btn-secondary py-3.5 flex justify-center text-[15px]">
+                Send an Inquiry
+              </Link>
             </div>
           </div>
         </div>
