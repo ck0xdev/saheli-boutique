@@ -1,139 +1,70 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 
 export default function ProductDetail() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState('');
+  const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const docRef = doc(db, 'products_saheli', id);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          // Merge the auto-generated ID with the document data
-          setProduct({ id: docSnap.id, ...data });
-          
-          // Set the initial main image
-          setActiveImage(data.images?.[0] || data.thumbnail || 'http://placehold.it/600x800/eeeeee/111111&text=No+Image');
-        } else {
-          console.error('No such document!');
-        }
-      } catch (error) {
-        console.error('Error fetching product:', error);
-      } finally {
-        setLoading(false);
+    const fetch = async () => {
+      const docRef = doc(db, 'products_saheli', id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setProduct({ id: docSnap.id, ...data });
+        setActiveImage(data.images?.[0] || data.thumbnail);
+        const q = query(collection(db, 'reviews_saheli'), where('productId', '==', id), where('status', '==', 'approved'));
+        const rSnap = await getDocs(q);
+        setReviews(rSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       }
+      setLoading(false);
     };
-
-    fetchProduct();
+    fetch();
   }, [id]);
 
-  // Loading State
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#fdfbf9] flex justify-center py-32">
-        <div className="w-10 h-10 border-4 border-accent/30 border-t-accent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!auth.currentUser) return alert("Please sign in.");
+    setSubmitting(true);
+    try {
+      const userDoc = await getDoc(doc(db, 'users_saheli', auth.currentUser.uid));
+      const customerName = userDoc.exists() ? userDoc.data().name : (auth.currentUser.displayName || "Client");
+      await addDoc(collection(db, 'reviews_saheli'), { productId: id, customerName, rating: Number(newReview.rating), comment: newReview.comment, status: 'pending', createdAt: serverTimestamp() });
+      alert("Review submitted for moderation.");
+      setNewReview({ rating: 5, comment: '' });
+    } catch { alert("Error."); } finally { setSubmitting(false); }
+  };
 
-  // Not Found State
-  if (!product) {
-    return (
-      <div className="min-h-screen bg-[#fdfbf9] flex flex-col justify-center items-center py-32 animate-fade-in">
-        <h2 className="text-4xl font-serif text-textMain mb-4">Product Not Found</h2>
-        <p className="text-textLight mb-8 font-light">The item you are looking for does not exist or has been removed.</p>
-        <Link to="/shop" className="bg-transparent text-textMain px-8 py-3 rounded-soft border border-textMain hover:bg-bgMain transition-colors font-medium">
-          Return to Collection
-        </Link>
-      </div>
-    );
-  }
-
-  // Generate WhatsApp Link
-  const action = product.tag === 'Buy' ? 'buy' : (product.tag === 'Rent' ? 'rent' : 'book');
-  const waMessage = `Hi, I am interested in looking to ${action} the ${product.name} (ID: ${product.productId || product.id}).`;
-  const waLink = `https://wa.me/919265466420?text=${encodeURIComponent(waMessage)}`;
+  if (loading) return <div className="min-h-screen bg-[#fdfbf9] flex items-center justify-center"><div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin"></div></div>;
+  if (!product) return <div className="min-h-screen bg-[#fdfbf9] flex flex-col items-center justify-center"><h2 className="text-3xl font-serif mb-4">Service Not Found</h2><Link to="/shop" className="text-accent underline text-xs">Return to Collection</Link></div>;
 
   return (
-    <div className="min-h-screen bg-[#fdfbf9] py-16 md:py-24 animate-fade-in">
-      <div className="w-[90%] max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20 items-start">
-        
-        {/* Left Column: Image Gallery */}
-        <div className="flex flex-col gap-4 sticky top-32">
-          {/* Main Image */}
-          <div className="aspect-[3/4] w-full rounded-soft overflow-hidden border border-borderSoft bg-white shadow-sm">
-            <img 
-              src={activeImage} 
-              alt={product.name} 
-              className="w-full h-full object-cover transition-opacity duration-300"
-            />
+    <div className="bg-[#fdfbf9] min-h-screen pb-24">
+      <div className="w-[90%] max-w-[1200px] mx-auto pt-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+          <div className="space-y-6">
+            <div className="aspect-[3/4] rounded-soft overflow-hidden shadow-2xl border border-borderSoft/30"><img src={activeImage} alt={product.name} className="w-full h-full object-cover" /></div>
+            {product.images?.length > 1 && <div className="flex gap-4 overflow-x-auto pb-4">{product.images.map((img, i) => <button key={i} onClick={() => setActiveImage(img)} className={`w-24 h-32 rounded-soft overflow-hidden border-2 ${activeImage === img ? 'border-accent' : 'border-transparent opacity-70'}`}><img src={img} className="w-full h-full object-cover" /></button>)}</div>}
           </div>
-          
-          {/* Thumbnail Strip */}
-          {product.images && product.images.length > 1 && (
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-              {product.images.map((imgUrl, index) => (
-                <button 
-                  key={index} 
-                  onClick={() => setActiveImage(imgUrl)}
-                  className={`flex-shrink-0 w-20 h-24 rounded-soft overflow-hidden border-2 transition-colors ${activeImage === imgUrl ? 'border-accent' : 'border-transparent hover:border-borderSoft'}`}
-                >
-                  <img src={imgUrl} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="lg:sticky lg:top-32 space-y-8">
+            <span className="text-accent text-[10px] font-bold uppercase tracking-[0.3em]">{product.tag}</span>
+            <h1 className="text-4xl md:text-6xl font-serif text-textMain leading-tight">{product.name}</h1>
+            <div className="py-6 border-y border-borderSoft/30"><span className="text-3xl font-serif">{product.priceDisplay}</span></div>
+            <p className="text-gray-600 leading-relaxed text-base">{product.shortDesc}</p>
+            <div className="pt-8"><a href={`https://wa.me/919265466420?text=Hi, I am interested in ${product.name}`} target="_blank" className="w-full bg-accent text-white py-4 rounded-soft flex items-center justify-center font-bold uppercase text-xs tracking-widest shadow-xl shadow-accent/20 hover:bg-textMain transition-all">Book via WhatsApp</a></div>
+          </div>
         </div>
-
-        {/* Right Column: Product Details */}
-        <div className="flex flex-col">
-          <span className="inline-block bg-white border border-borderSoft text-textMain text-xs font-medium px-4 py-1.5 rounded-soft shadow-sm w-max mb-6">
-            {product.tag}
-          </span>
-          
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-serif text-textMain leading-tight mb-4">
-            {product.name}
-          </h1>
-          
-          <p className="text-textLight font-mono text-sm mb-8">
-            ID: {product.productId || product.id}
-          </p>
-          
-          <div className="pb-8 border-b border-borderSoft mb-8">
-            <h2 className="text-3xl text-textMain font-medium flex items-baseline gap-2">
-              {product.priceDisplay}
-            </h2>
-            {product.buyoutPrice && (
-              <p className="text-textLight mt-2 text-sm">
-                Buy price: <span className="font-medium">{product.buyoutPrice}</span>
-              </p>
-            )}
-          </div>
-
-          <div className="prose prose-sm md:prose-base text-textLight font-light mb-10">
-            <p className="mb-4">{product.shortDesc}</p>
-            {/* If details is stored as HTML string in Firebase */}
-            <div dangerouslySetInnerHTML={{ __html: product.details }} className="list-disc pl-5 space-y-2 mt-4" />
-          </div>
-
-          <a 
-            href={waLink} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="w-full bg-accent text-bgMain px-8 py-4 rounded-soft border border-accent hover:bg-textMain hover:border-textMain transition-all duration-300 font-medium tracking-wide text-center text-lg shadow-sm"
-          >
-            Message us on WhatsApp
-          </a>
+        <div className="mt-32 pt-24 border-t border-borderSoft/30 grid grid-cols-1 lg:grid-cols-12 gap-16">
+          <div className="lg:col-span-5"><div className="bg-white p-12 rounded-soft shadow-xl border border-borderSoft/30"><h3 className="text-2xl font-serif mb-6">Client Experience</h3><form onSubmit={handleSubmit} className="space-y-6"><select value={newReview.rating} onChange={(e)=>setNewReview({...newReview, rating: e.target.value})} className="w-full bg-[#fdfbf9] border border-borderSoft p-4 rounded-soft text-sm outline-none"><option value="5">5 Stars</option><option value="4">4 Stars</option></select><textarea required placeholder="How was your session?" value={newReview.comment} onChange={(e)=>setNewReview({...newReview, comment: e.target.value})} className="w-full bg-[#fdfbf9] border border-borderSoft p-4 rounded-soft text-sm outline-none min-h-[120px]" /><button className="w-full bg-textMain text-white py-4 rounded-soft text-[10px] font-bold uppercase tracking-widest shadow-xl">{submitting ? 'Submitting...' : 'Post Story'}</button></form></div></div>
+          <div className="lg:col-span-7"><h3 className="text-2xl font-serif mb-12 italic">Voices of Saheli</h3>{reviews.length > 0 ? <div className="space-y-8">{reviews.map((r, i) => <div key={i} className="bg-white p-10 rounded-soft shadow-md border-l-4 border-accent"><p className="text-gray-500 italic mb-6 leading-relaxed">"{r.comment}"</p><p className="text-textMain font-bold uppercase text-[10px] tracking-widest">— {r.customerName}</p></div>)}</div> : <p className="text-gray-400 italic">No stories yet.</p>}</div>
         </div>
-
       </div>
     </div>
   );
