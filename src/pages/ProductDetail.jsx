@@ -1,69 +1,150 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db, auth } from '../config/firebase';
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import DOMPurify from "dompurify";
+import { db, auth } from "../config/firebase";
+import { getCloudinaryUrl } from "../utils/cloudinary";
+import toast from "react-hot-toast";
 
 export default function ProductDetail() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeImage, setActiveImage] = useState('');
-  const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
+  const [activeImage, setActiveImage] = useState("");
+  const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetch = async () => {
-      const docRef = doc(db, 'products_saheli', id);
+    const fetchData = async () => {
+      const docRef = doc(db, "products_saheli", id);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
         setProduct({ id: docSnap.id, ...data });
         setActiveImage(data.images?.[0] || data.thumbnail);
-        const q = query(collection(db, 'reviews_saheli'), where('productId', '==', id), where('status', '==', 'approved'));
+        const q = query(
+          collection(db, "reviews_saheli"),
+          where("productId", "==", id),
+          where("status", "==", "approved"),
+        );
         const rSnap = await getDocs(q);
-        setReviews(rSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setReviews(rSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
       }
       setLoading(false);
     };
-    fetch();
+    fetchData();
   }, [id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!auth.currentUser) return alert("Please sign in.");
+    if (!auth.currentUser) return toast.error("Please sign in to leave a review.");
+    
+    if (!newReview.comment.trim()) {
+      return toast.error("Review cannot be empty.");
+    }
+
     setSubmitting(true);
     try {
-      const userDoc = await getDoc(doc(db, 'users_saheli', auth.currentUser.uid));
-      const customerName = userDoc.exists() ? userDoc.data().name : (auth.currentUser.displayName || "Client");
-      await addDoc(collection(db, 'reviews_saheli'), { productId: id, customerName, rating: Number(newReview.rating), comment: newReview.comment, status: 'pending', createdAt: serverTimestamp() });
-      alert("Review submitted for moderation.");
-      setNewReview({ rating: 5, comment: '' });
-    } catch { alert("Error."); } finally { setSubmitting(false); }
+      const userDoc = await getDoc(doc(db, "users_saheli", auth.currentUser.uid));
+      const customerName = userDoc.exists() ? userDoc.data().name : auth.currentUser.displayName || "Client";
+      
+      await addDoc(collection(db, "reviews_saheli"), {
+        productId: id,
+        customerName,
+        rating: Number(newReview.rating),
+        comment: newReview.comment.trim(),
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
+      
+      toast.success("Review submitted! It will appear Soon.");
+      setNewReview({ rating: 5, comment: "" });
+    } catch {
+      toast.error("Failed to submit review.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (loading) return <div className="min-h-screen bg-[#fdfbf9] flex items-center justify-center"><div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin"></div></div>;
-  if (!product) return <div className="min-h-screen bg-[#fdfbf9] flex flex-col items-center justify-center"><h2 className="text-3xl font-serif mb-4">Service Not Found</h2><Link to="/shop" className="text-accent underline text-xs">Return to Collection</Link></div>;
+  if (loading) return <div className="min-h-screen bg-bgBase"><div className="w-[90%] max-w-[1200px] mx-auto pt-20"><div className="aspect-[3/4] skeleton rounded-soft w-1/2" /></div></div>;
+  if (!product) return <div className="min-h-screen bg-bgBase flex flex-col items-center justify-center"><h2 className="text-3xl font-serif mb-2 text-textMain">Product Not Found</h2><Link to="/shop" className="btn-ghost">Return to Collection</Link></div>;
 
   return (
-    <div className="bg-[#fdfbf9] min-h-screen pb-24">
+    <div className="bg-bgBase min-h-screen pb-24 animate-fade-in">
       <div className="w-[90%] max-w-[1200px] mx-auto pt-20">
+        <nav className="mb-10 text-[10px] font-sans font-bold uppercase tracking-widest text-textMuted flex items-center gap-2">
+          <Link to="/shop" className="hover:text-accent transition-colors">Products</Link><span>/</span><span className="text-textMain">{product.name}</span>
+        </nav>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-          <div className="space-y-6">
-            <div className="aspect-[3/4] rounded-soft overflow-hidden shadow-2xl border border-borderSoft/30"><img src={activeImage} alt={product.name} className="w-full h-full object-cover" /></div>
-            {product.images?.length > 1 && <div className="flex gap-4 overflow-x-auto pb-4">{product.images.map((img, i) => <button key={i} onClick={() => setActiveImage(img)} className={`w-24 h-32 rounded-soft overflow-hidden border-2 ${activeImage === img ? 'border-accent' : 'border-transparent opacity-70'}`}><img src={img} className="w-full h-full object-cover" /></button>)}</div>}
+          <div className="space-y-4">
+            <div className="aspect-[3/4] rounded-soft overflow-hidden shadow-card border border-borderSoft bg-white">
+              <img src={getCloudinaryUrl(activeImage, 800)} alt={product.name} className="w-full h-full object-cover" />
+            </div>
+            {product.images?.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {product.images.map((img, i) => (
+                  <button key={i} onClick={() => setActiveImage(img)} className={`w-20 h-28 rounded-soft overflow-hidden border-2 flex-shrink-0 transition-all ${activeImage === img ? "border-accent shadow-md" : "border-transparent opacity-60 hover:opacity-100"}`}>
+                    <img src={getCloudinaryUrl(img, 160)} className="w-full h-full object-cover" alt="" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
           <div className="lg:sticky lg:top-32 space-y-8">
-            <span className="text-accent text-[10px] font-bold uppercase tracking-[0.3em]">{product.tag}</span>
-            <h1 className="text-4xl md:text-6xl font-serif text-textMain leading-tight">{product.name}</h1>
-            <div className="py-6 border-y border-borderSoft/30"><span className="text-3xl font-serif">{product.priceDisplay}</span></div>
-            <p className="text-gray-600 leading-relaxed text-base">{product.shortDesc}</p>
-            <div className="pt-8"><a href={`https://wa.me/919265466420?text=Hi, I am interested in ${product.name}`} target="_blank" className="w-full bg-accent text-white py-4 rounded-soft flex items-center justify-center font-bold uppercase text-xs tracking-widest shadow-xl shadow-accent/20 hover:bg-textMain transition-all">Book via WhatsApp</a></div>
+            <div>
+              <span className="label text-accent">{product.category} · {product.tag}</span>
+              <h1 className="text-3xl md:text-5xl font-serif text-textMain tracking-tight leading-tight mt-2">{product.name}</h1>
+            </div>
+            <div className="py-6 border-y border-borderSoft"><span className="text-2xl font-sans font-bold tracking-widest text-textMain">{product.priceDisplay}</span></div>
+            <p className="text-textBody leading-relaxed text-base font-light">{product.shortDesc}</p>
+            {product.details && <div className="text-textBody text-sm leading-loose font-light prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.details) }} />}
+            <div className="pt-2 space-y-3">
+              <a href={`https://wa.me/919265466420?text=Hi, I'm interested in ${encodeURIComponent(product.name)}`} target="_blank" rel="noreferrer" className="w-full btn-primary py-3.5">Inquire on WhatsApp</a>
+              <Link to="/contact" className="w-full btn-secondary py-3.5">Send an Inquiry</Link>
+            </div>
           </div>
         </div>
-        <div className="mt-32 pt-24 border-t border-borderSoft/30 grid grid-cols-1 lg:grid-cols-12 gap-16">
-          <div className="lg:col-span-5"><div className="bg-white p-12 rounded-soft shadow-xl border border-borderSoft/30"><h3 className="text-2xl font-serif mb-6">Client Experience</h3><form onSubmit={handleSubmit} className="space-y-6"><select value={newReview.rating} onChange={(e)=>setNewReview({...newReview, rating: e.target.value})} className="w-full bg-[#fdfbf9] border border-borderSoft p-4 rounded-soft text-sm outline-none"><option value="5">5 Stars</option><option value="4">4 Stars</option></select><textarea required placeholder="How was your session?" value={newReview.comment} onChange={(e)=>setNewReview({...newReview, comment: e.target.value})} className="w-full bg-[#fdfbf9] border border-borderSoft p-4 rounded-soft text-sm outline-none min-h-[120px]" /><button className="w-full bg-textMain text-white py-4 rounded-soft text-[10px] font-bold uppercase tracking-widest shadow-xl">{submitting ? 'Submitting...' : 'Post Story'}</button></form></div></div>
-          <div className="lg:col-span-7"><h3 className="text-2xl font-serif mb-12 italic">Voices of Saheli</h3>{reviews.length > 0 ? <div className="space-y-8">{reviews.map((r, i) => <div key={i} className="bg-white p-10 rounded-soft shadow-md border-l-4 border-accent"><p className="text-gray-500 italic mb-6 leading-relaxed">"{r.comment}"</p><p className="text-textMain font-bold uppercase text-[10px] tracking-widest">— {r.customerName}</p></div>)}</div> : <p className="text-gray-400 italic">No stories yet.</p>}</div>
+
+        <div className="mt-24 pt-20 border-t border-borderSoft grid grid-cols-1 lg:grid-cols-12 gap-16">
+          <div className="lg:col-span-5">
+            <div className="card p-10">
+              <h3 className="text-2xl font-serif text-textMain mb-2">Share Your Experience</h3>
+              <p className="text-textMuted text-xs font-light mb-8">Your review goes live after moderation.</p>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="label">Rating</label>
+                  <select value={newReview.rating} onChange={(e) => setNewReview({ ...newReview, rating: e.target.value })} className="input-field">
+                    {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} Star{n > 1 ? "s" : ""} {"★".repeat(n)}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Your Review</label>
+                  <textarea required placeholder="How was your product? Share your honest experience..." value={newReview.comment} onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })} className="input-field min-h-[120px] resize-none" />
+                </div>
+                <button type="submit" disabled={submitting} className="btn-primary w-full py-4">{submitting ? "Submitting..." : "Post Review"}</button>
+              </form>
+            </div>
+          </div>
+
+          <div className="lg:col-span-7">
+            <h3 className="text-3xl font-serif text-textMain mb-10 italic">Client Stories</h3>
+            {reviews.length > 0 ? (
+              <div className="space-y-6">
+                {reviews.map((r, i) => (
+                  <div key={i} className="card p-8 border-l-4 border-l-accent">
+                    <div className="flex text-accent text-sm mb-4">{[...Array(5)].map((_, j) => <span key={j} className={j < r.rating ? "text-accent" : "opacity-30"}>★</span>)}</div>
+                    <p className="text-textBody italic mb-4 leading-relaxed font-light">"{r.comment}"</p>
+                    <p className="text-textMain font-sans font-bold uppercase text-[10px] tracking-widest">— {r.customerName}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white border border-dashed border-borderSoft rounded-soft p-12 text-center"><p className="text-textMuted font-serif italic">Be the first to share your experience.</p></div>
+            )}
+          </div>
         </div>
       </div>
     </div>
