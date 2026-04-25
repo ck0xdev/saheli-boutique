@@ -8,9 +8,9 @@ import toast from 'react-hot-toast';
 
 function SkeletonCard() {
   return (
-    <div className="flex flex-col bg-white border border-borderSoft rounded-soft overflow-hidden shadow-card">
+    <div className="flex flex-col bg-bgElevated border border-borderSoft rounded-lg overflow-hidden shadow-card">
       <div className="aspect-[3/4] skeleton" />
-      <div className="p-6 space-y-3"><div className="h-4 skeleton rounded-soft w-3/4 mx-auto" /><div className="h-3 skeleton rounded-soft w-1/2 mx-auto" /></div>
+      <div className="p-6 space-y-3"><div className="h-4 skeleton rounded w-3/4 mx-auto" /><div className="h-3 skeleton rounded w-1/2 mx-auto" /></div>
     </div>
   );
 }
@@ -43,7 +43,9 @@ export default function Shop() {
 
   const resetFilters = () => { setCategory('all'); setMaxPrice(10000); setSpecialTag('all'); };
   const categories  = ['all', 'art', 'extensions', 'academy'];
-  const tags        = ['all', 'Best Seller', 'Selling of the Month', 'New Arrival'];
+  
+  // REMOVED 'Selling of the Month'
+  const tags        = ['all', 'Best Seller', 'New Arrival']; 
   const categoryLabels = { all: 'Everything', art: 'Nail Art', extensions: 'Nail Extensions', academy: 'Academy' };
 
   const handleInquiry = (product) => {
@@ -54,7 +56,7 @@ export default function Shop() {
     }
     const userName = auth.currentUser.displayName || auth.currentUser.email.split('@')[0];
     const productIdText = product.productId ? product.productId : product.id;
-    const message = `Hi I am ${userName}, I am interested to buy ${product.name} (${productIdText})`;
+    const message = `Hi i am ${userName}, i am interested to buy ${product.name} ${productIdText}`;
     
     window.open(`https://wa.me/919265466420?text=${encodeURIComponent(message)}`, '_blank');
   };
@@ -114,8 +116,10 @@ export default function Shop() {
                     <Link to={`/product/${p.id}`} className="no-underline">
                       <h3 className="font-serif text-[18px] font-medium text-textMain mb-2 group-hover:text-accent transition-colors line-clamp-1">{p.name}</h3>
                     </Link>
-                    
-                    <p className="text-textMain font-sans font-bold text-[14px] mb-4 tracking-widest">₹ {p.priceDisplay}</p>
+                    <div className="flex justify-center items-center gap-1 mb-3 text-accent">
+                      {[...Array(5)].map((_, i) => <span key={i} className={`text-sm ${i < (p.rating || 5) ? '' : 'opacity-30'}`}>★</span>)}
+                    </div>
+                    <p className="text-textMain font-sans font-bold text-[14px] mb-4 tracking-widest">{p.priceDisplay}</p>
                     <button 
                       onClick={() => handleInquiry(p)} 
                       className="mt-auto w-full btn-primary text-[11px]"
