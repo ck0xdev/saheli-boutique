@@ -1,50 +1,101 @@
-export default function Footer() {
-  return (
-    <footer className="pt-20 pb-8 bg-[#fdfbf9] border-t border-borderSoft mt-auto">
-      <div className="w-[90%] max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-8 items-start">
-        
-        {/* Brand Info */}
-        <div className="md:col-span-5 lg:col-span-4">
-          <div className="text-2xl text-textMain font-serif tracking-wide mb-6">
-            SAHELI <span className="text-accent italic font-light">Boutique</span>
-          </div>
-          <p className="text-textLight mb-6 leading-relaxed font-light">
-            Elevating your special occasions with premium ethnic wear rentals, bespoke tailoring, and professional nail artistry.
-          </p>
-          <div className="text-textMain font-medium">
-            <p className="mb-1">A-98 Sumeru City Mall, Sudama Chowk</p>
-            <p className="mb-4">Mota Varachha, Surat</p>
-            <a href="tel:+919265466420" className="text-accent hover:text-textMain transition-colors duration-300 inline-block border-b border-accent/30 pb-0.5">
-              +91 92654 66420
-            </a>
-          </div>
-        </div>
-        
-        {/* Empty Spacer Column for Desktop */}
-        <div className="hidden lg:block lg:col-span-2"></div>
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { db } from '../config/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import logo from '../assets/logo.jpg';
 
-        {/* Map */}
-        <div className="md:col-span-7 lg:col-span-6">
-          <div className="h-[250px] w-full border border-borderSoft rounded-soft overflow-hidden shadow-sm bg-white p-1">
-            <iframe 
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3718.966961730079!2d72.88099681534882!3d21.23315268588825!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be04f5e088bf24d%3A0x6b801a24d8560091!2sSumeru%20City%20Mall!5e0!3m2!1sen!2sin!4v1680000000000!5m2!1sen!2sin" 
-              className="w-full h-full rounded-sm" 
-              style={{ border: 0 }} 
-              allowFullScreen="" 
-              loading="lazy" 
-              referrerPolicy="no-referrer-when-downgrade"
-              title="Saheli Boutique Location">
-            </iframe>
-          </div>
+export default function Footer() {
+  const [email, setEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleSubscribe = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      // Logic for the new collection: subscribes_saheli
+      await addDoc(collection(db, "subscribes_saheli"), {
+        email: email,
+        subscribedAt: serverTimestamp(),
+        active: true
+      });
+      setMessage("Thank you for subscribing!");
+      setEmail('');
+    } catch (err) {
+      console.error("Subscription error:", err);
+      setMessage("Please try again later.");
+    } finally {
+      setSubmitting(false);
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  return (
+    <footer className="bg-[#fdfbf9] border-t border-borderSoft pt-20 pb-10 mt-auto font-sans">
+      <div className="w-[90%] max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 items-start">
+        
+        {/* Section 1: Logo / Name */}
+        <div className="flex flex-col gap-6">
+          <Link to="/" className="inline-block hover:opacity-90 transition-opacity">
+            <img src={logo} alt="Saheli Boutique" className="h-14 w-auto object-contain rounded-sm" />
+          </Link>
+          <p className="text-textLight text-sm font-light leading-relaxed">
+            Elevating your special occasions with premium ethnic wear rentals and professional artistry in Surat.
+          </p>
         </div>
+
+        {/* Section 2: Page Links */}
+        <div>
+          <h3 className="text-textMain text-sm font-semibold uppercase tracking-widest mb-8">Navigation</h3>
+          <ul className="flex flex-col gap-4 text-textLight text-sm font-light">
+            <li><Link to="/" className="hover:text-accent transition-colors">Home</Link></li>
+            <li><Link to="/shop" className="hover:text-accent transition-colors">Collection</Link></li>
+            <li><Link to="/about" className="hover:text-accent transition-colors">About Us</Link></li>
+            <li><Link to="/contact" className="hover:text-accent transition-colors">Contact</Link></li>
+          </ul>
+        </div>
+
+        {/* Section 3: Privacy Policy & Policies */}
+        <div>
+          <h3 className="text-textMain text-sm font-semibold uppercase tracking-widest mb-8">Policies</h3>
+          <ul className="flex flex-col gap-4 text-textLight text-sm font-light">
+            <li><Link to="/shop" className="hover:text-accent transition-colors">Privacy Policy</Link></li>
+            <li><Link to="/shop" className="hover:text-accent transition-colors">Terms of Service</Link></li>
+            <li><Link to="/shop" className="hover:text-accent transition-colors">Return Policy</Link></li>
+            <li><Link to="/shop" className="hover:text-accent transition-colors">Rental Agreement</Link></li>
+          </ul>
+        </div>
+
+        {/* Section 4: Email Subscribe */}
+        <div>
+          <h3 className="text-textMain text-sm font-semibold uppercase tracking-widest mb-8">Newsletter</h3>
+          <p className="text-textLight text-sm font-light mb-6">Stay updated on our latest arrivals.</p>
+          <form onSubmit={handleSubscribe} className="flex flex-col gap-3">
+            <input 
+              type="email" 
+              required
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="bg-white border border-borderSoft px-4 py-3 rounded-soft text-sm focus:outline-none focus:border-accent transition-colors w-full"
+            />
+            <button 
+              type="submit" 
+              disabled={submitting}
+              className="bg-accent text-white py-3 rounded-soft text-sm font-medium hover:bg-textMain transition-all duration-300 disabled:opacity-50"
+            >
+              {submitting ? 'Subscribing...' : 'Subscribe'}
+            </button>
+            {message && <p className="text-xs text-accent mt-1 animate-fade-in font-medium">{message}</p>}
+          </form>
+        </div>
+
       </div>
-      
-      <div className="w-[90%] max-w-[1200px] mx-auto border-t border-borderSoft/60 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-textLight text-sm font-light">
+
+      {/* Message Section / Copyright */}
+      <div className="w-[90%] max-w-[1200px] mx-auto border-t border-borderSoft mt-16 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-textLight text-xs font-light tracking-wide uppercase">
+        <p>Fashion You Love, Trends that Sets</p>
         <p>© 2026 Saheli Boutique. All rights reserved.</p>
-        <div className="flex gap-6">
-          <a href="#" className="hover:text-accent transition-colors">Instagram</a>
-          <a href="#" className="hover:text-accent transition-colors">WhatsApp</a>
-        </div>
       </div>
     </footer>
   );
