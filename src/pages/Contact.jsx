@@ -1,16 +1,37 @@
-import { useState } from 'react';
-import { db } from '../config/firebase';
+import { useState, useEffect } from 'react';
+import { db, auth } from '../config/firebase'; // Added auth import
+import { onAuthStateChanged } from 'firebase/auth'; // Auth listener
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 export default function Contact() {
+  const [user, setUser] = useState(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+  
   const [form, setForm] = useState({ name: '', phone: '', email: '', message: '', service: '' });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  // --- Check if User is Logged In ---
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        // Auto-fill their name and email so they don't have to type it again
+        setForm(prev => ({
+          ...prev,
+          name: currentUser.displayName || '',
+          email: currentUser.email || ''
+        }));
+      }
+      setLoadingAuth(false);
+    });
+    return unsub;
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Prevent typing letters in phone number
     if (name === 'phone') {
       setForm(prev => ({ ...prev, [name]: value.replace(/[^0-9+\-\s()]/g, '') }));
     } else {
@@ -20,7 +41,6 @@ export default function Contact() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Block spaces-only submissions
     if (!form.name.trim() || !form.message.trim()) {
       return toast.error('Please provide a valid name and message.');
     }
@@ -36,8 +56,16 @@ export default function Contact() {
       });
       setSubmitted(true);
       toast.success('Your message has been received! We\'ll reach out soon.');
-    } catch (err) { toast.error('Something went wrong. Please try again.'); } finally { setSubmitting(false); }
+    } catch (err) { 
+      toast.error('Something went wrong. Please try again.'); 
+    } finally { 
+      setSubmitting(false); 
+    }
   };
+
+  if (loadingAuth) {
+    return <div className="min-h-screen bg-bgBase flex items-center justify-center"><div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" /></div>;
+  }
 
   return (
     <div className="bg-bgBase min-h-screen animate-fade-in font-sans">
@@ -71,11 +99,23 @@ export default function Contact() {
           </aside>
 
           <div className="lg:col-span-8">
-            {submitted ? (
+            {/* If NOT logged in, show login prompt */}
+            {!user ? (
+              <div className="card p-16 text-center animate-scale-in border-dashed border-2">
+                <div className="w-16 h-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                </div>
+                <h3 className="text-3xl font-serif text-textMain mb-4">Sign in required</h3>
+                <p className="text-textMuted font-light mb-8 text-sm max-w-sm mx-auto">
+                  To prevent spam and ensure the highest quality of service, we ask all clients to sign in before sending a direct message.
+                </p>
+                <Link to="/login" className="btn-primary px-10">Sign In to Continue</Link>
+              </div>
+            ) : submitted ? (
               <div className="card p-16 text-center animate-scale-in">
                 <h3 className="text-3xl font-serif text-textMain mb-4">Message Received</h3>
                 <p className="text-textMuted font-light mb-8 text-sm max-w-sm mx-auto">Thank you for reaching out. A Saheli specialist will contact you via WhatsApp shortly.</p>
-                <button onClick={() => { setSubmitted(false); setForm({ name: '', phone: '', email: '', message: '', service: '' }); }} className="btn-secondary">Send Another Message</button>
+                <button onClick={() => { setSubmitted(false); setForm({ name: user.displayName || '', phone: '', email: user.email || '', message: '', service: '' }); }} className="btn-secondary">Send Another Message</button>
               </div>
             ) : (
               <div className="card p-10 md:p-14">

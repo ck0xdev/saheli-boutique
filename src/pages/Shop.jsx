@@ -115,7 +115,7 @@ export default function Shop() {
                       <h3 className="font-serif text-[18px] font-medium text-textMain mb-2 group-hover:text-accent transition-colors line-clamp-1">{p.name}</h3>
                     </Link>
                     
-                    <p className="text-textMain font-sans font-bold text-[14px] mb-4 tracking-widest">{p.priceDisplay}</p>
+                    <p className="text-textMain font-sans font-bold text-[14px] mb-4 tracking-widest">₹ {p.priceDisplay}</p>
                     <button 
                       onClick={() => handleInquiry(p)} 
                       className="mt-auto w-full btn-primary text-[11px]"

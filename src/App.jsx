@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'; // <-- Imported TanStack Query
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -14,11 +14,10 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfUse from './pages/TermsOfUse';
 import { Toaster } from 'react-hot-toast';
 
-// 1. Create a Query Client instance
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false, // Prevents excessive refetching when you switch browser tabs
+      refetchOnWindowFocus: false,
     },
   },
 });
@@ -51,7 +50,6 @@ function AppLayout() {
 
 export default function App() {
   return (
-    // 2. Wrap the entire app in the QueryClientProvider
     <QueryClientProvider client={queryClient}>
       <Router>
         <Toaster 

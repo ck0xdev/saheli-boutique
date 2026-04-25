@@ -5,7 +5,7 @@ export default function PrivacyPolicy() {
         <span className="label text-accent mb-4">Legal</span>
         <h1 className="text-4xl font-serif text-textMain mb-8">Privacy Policy</h1>
         
-        <div className="space-y-8 text-textBody font-light leading-relaxed">
+        <div className="space-y-8 text-textBody font-light leading-relaxed text-sm">
           <p>Last updated: April 2026</p>
           
           <section>
@@ -30,12 +30,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section>
-            <h2 className="text-xl font-serif text-textMain mb-3">4. Security of Your Information</h2>
-            <p>We have implemented appropriate technical and organizational security measures designed to protect the security of any personal information we process. However, despite our safeguards, no electronic transmission over the Internet or information storage technology can be guaranteed to be 100% secure.</p>
-          </section>
-
-          <section>
-            <h2 className="text-xl font-serif text-textMain mb-3">5. Contact Us</h2>
+            <h2 className="text-xl font-serif text-textMain mb-3">4. Contact Us</h2>
             <p>If you have questions or comments about this notice, you may contact us through our Contact Page or visit us directly at our Surat studio.</p>
           </section>
         </div>
